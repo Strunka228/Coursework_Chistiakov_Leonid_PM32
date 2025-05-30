@@ -17,6 +17,11 @@ repositories {
     mavenCentral()
 }
 
+springBoot {
+    mainClass.set("net.example.gomoku.GomokuApplication")
+}
+
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-web")
