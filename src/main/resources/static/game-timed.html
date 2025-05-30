@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Gomoku – Гра на час</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #fdfbfb, #ebedee);
+            text-align: center;
+        }
+        h2 {
+            margin-top: 20px;
+            font-size: 28px;
+            color: #333;
+        }
+        #players, #scores, #timer {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #555;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(15, 40px);
+            grid-template-rows: repeat(15, 40px);
+            margin: auto;
+            width: fit-content;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #bbb;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background-color: white;
+            transition: background 0.3s ease;
+        }
+        .cell:hover {
+            background-color: #eef;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #dialog {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        #dialog p {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #dialog button {
+            margin: 10px;
+            padding: 10px 25px;
+            font-size: 16px;
+            border: none;
+            background-color: #6c63ff;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        #dialog button:hover {
+            background-color: #5750d9;
+        }
+        #exit-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: background 0.3s ease;
+        }
+
+        #exit-btn:hover {
+            background: #d43c3c;
+        }
+
+
+    </style>
+</head>
+<body>
+
+<button id="exit-btn" onclick="exitToMenu()">Вийти в меню</button>
+<h2>Gomoku – Гра на час</h2>
+<div id="players"></div>
+<div id="scores"></div>
+<div id="timer"></div>
+<div id="game-board"></div>
+<div id="status">Завантаження гри...</div>
+
+<div id="overlay">
+    <div id="dialog">
+        <p id="winner-message"></p>
+        <button onclick="playAgain()">Спробувати ще раз</button>
+        <button onclick="exitToMenu()">Обрати інший режим</button>
+    </div>
+</div>
+
+<script>
+    const size = 15;
+    let board = Array.from({ length: size }, () => Array(size).fill(""));
+    let currentPlayer = "X";
+    let score1 = 0, score2 = 0;
+    let gameEnded = false;
+    let timeLeft = 60;
+
+    const player1 = localStorage.getItem("gomoku_player1") || "Гравець X";
+    const player2 = localStorage.getItem("gomoku_player2") || "Гравець O";
+    const mode = localStorage.getItem("gomoku_mode");
+    const opponent = localStorage.getItem("gomoku_opponent");
+
+    document.getElementById("players").textContent = `X: ${player1} vs O: ${player2}`;
+    updateScoreDisplay();
+    updateStatus();
+
+    window.onload = () => {
+        initGame();
+    };
+
+    async function initGame() {
+        await fetch(`/api/game/new?mode=${mode}&opponent=${opponent}&playerX=${encodeURIComponent(player1)}&playerO=${encodeURIComponent(player2)}`, {
+            method: 'POST'
+        });
+        renderBoard();
+        startTimer();
+    }
+
+    function updateScoreDisplay() {
+        document.getElementById("scores").textContent = `Рахунок: ${player1} (${score1}) — ${player2} (${score2})`;
+    }
+
+    function updateStatus() {
+        if (gameEnded) return;
+        const current = currentPlayer === "X" ? player1 : player2;
+        document.getElementById("status").textContent = `Хід: ${current}`;
+    }
+
+    function startTimer() {
+        const timer = document.getElementById("timer");
+        const interval = setInterval(() => {
+            if (gameEnded) return clearInterval(interval);
+            timeLeft--;
+            timer.textContent = `Час до кінця: ${timeLeft} секунд`;
+            if (timeLeft <= 0) {
+                gameEnded = true;
+                clearInterval(interval);
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function renderBoard() {
+        const boardDiv = document.getElementById("game-board");
+        boardDiv.innerHTML = "";
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.textContent = board[y][x];
+                if (!board[y][x] && !gameEnded) {
+                    cell.addEventListener("click", () => handleMove(x, y));
+                } else {
+                    cell.style.cursor = "default";
+                }
+                boardDiv.appendChild(cell);
+            }
+        }
+    }
+
+    function handleMove(x, y) {
+        if (board[y][x] || gameEnded) return;
+        board[y][x] = currentPlayer;
+        if (checkFive(x, y, currentPlayer)) {
+            if (currentPlayer === "X") score1++;
+            else score2++;
+            updateScoreDisplay();
+        }
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        renderBoard();
+        updateStatus();
+    }
+
+    function checkFive(x, y, player) {
+        const directions = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        for (const [dx, dy] of directions) {
+            let count = 1;
+            for (let i = 1; i < 5; i++) {
+                const nx = x + dx * i, ny = y + dy * i;
+                if (nx >= 0 && ny >= 0 && nx < size && ny < size && board[ny][nx] === player) count++;
+                else break;
+            }
+            for (let i = 1; i < 5; i++) {
+                const nx = x - dx * i, ny = y - dy * i;
+                if (nx >= 0 && ny >= 0 && nx < size && ny < size && board[ny][nx] === player) count++;
+                else break;
+            }
+            if (count >= 5) return true;
+        }
+        return false;
+    }
+
+    async function endGame() {
+        let message = "";
+        let winner = "Нічия";
+
+        if (score1 > score2) {
+            message = `Переможець: ${player1}`;
+            winner = player1;
+        } else if (score2 > score1) {
+            message = `Переможець: ${player2}`;
+            winner = player2;
+        } else {
+            message = "Нічия!";
+        }
+
+        document.getElementById("winner-message").textContent = message;
+        document.getElementById("overlay").style.display = "flex";
+        document.getElementById("status").textContent = "Гру завершено!";
+        gameEnded = true;
+        console.log("Opponent is:", opponent);
+
+        // Зберігаємо результат у базу, якщо не нічия і не CPU
+        if (winner !== "Нічия" && opponent !== "CPU") {
+            console.log("Надсилаємо результат:", player1, player2, winner);
+            try {
+                console.log("Надсилаємо результат:", player1, player2, winner);
+                await fetch('/api/stats/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        playerX: player1,
+                        playerO: player2,
+                        winner: winner
+                    })
+                });
+            } catch (e) {
+                console.error("Помилка збереження результату:", e);
+            }
+        }
+    }
+
+    function playAgain() {
+        board = Array.from({ length: size }, () => Array(size).fill(""));
+        score1 = 0;
+        score2 = 0;
+        currentPlayer = "X";
+        timeLeft = 60;
+        gameEnded = false;
+        document.getElementById("overlay").style.display = "none";
+        updateScoreDisplay();
+        updateStatus();
+        renderBoard();
+        startTimer();
+    }
+
+    function exitToMenu() {
+        window.location.href = "index.html";
+    }
+</script>
+
+
+</body>
+</html>

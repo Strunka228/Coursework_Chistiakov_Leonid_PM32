@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Gomoku – Гра</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #fdfbfb, #ebedee);
+            text-align: center;
+        }
+        h2 {
+            margin-top: 20px;
+            font-size: 28px;
+            color: #333;
+        }
+        #players {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        #scores {
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 18px;
+            color: #444;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(15, 40px);
+            grid-template-rows: repeat(15, 40px);
+            margin: auto;
+            width: fit-content;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #bbb;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background-color: white;
+            transition: background 0.3s ease;
+        }
+        .cell:hover {
+            background-color: #eef;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #dialog {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        #dialog p {
+            font-size: 20px;
+            font-weight: bold;
+        }
+        #dialog button {
+            margin: 10px;
+            padding: 10px 25px;
+            font-size: 16px;
+            border: none;
+            background-color: #6c63ff;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        #dialog button:hover {
+            background-color: #5750d9;
+        }
+        #exit-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            transition: background 0.3s ease;
+        }
+
+        #exit-btn:hover {
+            background: #d43c3c;
+        }
+
+    </style>
+</head>
+<body>
+
+<button id="exit-btn" onclick="exitToMenu()">Вийти в меню</button>
+<h2>Gomoku – Гра</h2>
+<div id="players"></div>
+<div id="scores"></div>
+<div id="game-board"></div>
+<div id="status">Завантаження гри...</div>
+
+<div id="overlay">
+    <div id="dialog">
+        <p id="winner-message"></p>
+        <button onclick="playAgain()">Спробувати ще раз</button>
+        <button onclick="goToMenu()">Обрати інший режим</button>
+    </div>
+</div>
+
+<script>
+    const size = 15;
+    let game = {};
+    const mode = localStorage.getItem("gomoku_mode");
+    const opponent = localStorage.getItem("gomoku_opponent");
+    const player1 = localStorage.getItem("gomoku_player1") || "Гравець X";
+    const player2 = localStorage.getItem("gomoku_player2") || "Гравець O";
+    let score1 = parseInt(localStorage.getItem("gomoku_score1")) || 0;
+    let score2 = parseInt(localStorage.getItem("gomoku_score2")) || 0;
+
+    document.getElementById("players").textContent = `X: ${player1} vs O: ${player2}`;
+    updateScoreDisplay();
+
+    async function startGame() {
+        const playerX = localStorage.getItem("gomoku_player1");
+        const playerO = localStorage.getItem("gomoku_player2");
+
+        await fetch(`/api/game/new?mode=${mode}&opponent=${opponent}&playerX=${encodeURIComponent(playerX)}&playerO=${encodeURIComponent(playerO)}`, {
+            method: 'POST'
+        });
+
+        await fetchGame();
+    }
+
+    function exitToMenu() {
+        window.location.href = "index.html";
+    }
+
+    async function fetchGame() {
+        const response = await fetch('/api/game');
+        game = await response.json();
+        renderBoard();
+        updateStatus();
+        checkWinner();
+    }
+
+    function renderBoard() {
+        const board = document.getElementById("game-board");
+        board.innerHTML = "";
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                const key = `${x},${y}`;
+                if (game.moves[key]) {
+                    cell.textContent = game.moves[key];
+                    cell.style.cursor = "default";
+                    cell.style.backgroundColor = "#f0f0f0";
+                } else if (!game.finished) {
+                    cell.addEventListener("click", () => makeMove(x, y));
+                }
+                board.appendChild(cell);
+            }
+        }
+    }
+
+    async function makeMove(x, y) {
+        if (game.finished) return;
+        const res = await fetch('/api/game/move', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x, y })
+        });
+        if (res.ok) {
+            game = await res.json();
+            renderBoard();
+            updateStatus();
+            checkWinner();
+        }
+    }
+
+    function updateStatus() {
+        const status = document.getElementById("status");
+        if (game.finished) {
+            const winner = game.winner === "X" ? player1 : player2;
+            status.textContent = `Гру завершено! Переміг: ${winner}`;
+        } else {
+            const current = game.currentPlayer === "X" ? player1 : player2;
+            status.textContent = `Хід: ${current}`;
+        }
+    }
+
+    function checkWinner() {
+        if (game.finished && game.winner) {
+            const winnerName = game.winner === "X" ? player1 : player2;
+            document.getElementById("winner-message").textContent = `Переміг: ${winnerName}`;
+
+            if (game.winner === "X") {
+                score1++;
+                localStorage.setItem("gomoku_score1", score1);
+            } else if (game.winner === "O") {
+                score2++;
+                localStorage.setItem("gomoku_score2", score2);
+            }
+
+            updateScoreDisplay();
+            document.getElementById("overlay").style.display = "flex";
+        }
+    }
+
+    function playAgain() {
+        document.getElementById("overlay").style.display = "none";
+        startGame();
+    }
+
+    function goToMenu() {
+        localStorage.removeItem("gomoku_score1");
+        localStorage.removeItem("gomoku_score2");
+        window.location.href = "index.html";
+    }
+
+    function updateScoreDisplay() {
+        document.getElementById("scores").textContent = `Рахунок: ${player1} (${score1}) — ${player2} (${score2})`;
+    }
+
+    window.onload = startGame;
+</script>
+
+</body>
+</html>

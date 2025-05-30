@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Gomoku - Меню</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #d3cce3, #e9e4f0);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .menu-container {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            text-align: center;
+            animation: fadeIn 0.6s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h2 {
+            margin-bottom: 30px;
+            font-size: 26px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #555;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+        .radio-group label:hover {
+            background-color: #f0f0f0;
+        }
+        input[type="radio"] {
+            margin-right: 10px;
+        }
+        button {
+            background: #6c63ff;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+        }
+        button:hover {
+            background: #5750d9;
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Модальне вікно */
+        #nameModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #nameDialog {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        #nameDialog input {
+            margin: 10px;
+            padding: 10px;
+            font-size: 16px;
+            width: 240px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        #nameDialog button:not(.close-btn) {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        .close-btn:hover {
+            color: #ff3b3b;
+        }
+        #nameDialog {
+            position: relative; /* для позиціонування хрестика */
+            background: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div class="menu-container">
+    <h2>Оберіть режим гри</h2>
+    <div class="form-group">
+        <label>Тип гри:</label>
+        <div class="radio-group">
+            <label><input type="radio" name="mode" value="FIRST_TO_FIVE" checked> Перший, хто збере 5</label>
+            <label><input type="radio" name="mode" value="TIME_LIMITED"> Гра на час</label>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Противник:</label>
+        <div class="radio-group">
+            <label><input type="radio" name="opponent" value="HUMAN" checked onchange="updateNameInputs()"> Інший гравець</label>
+            <label><input type="radio" name="opponent" value="CPU" onchange="updateNameInputs()"> Комп'ютер</label>
+        </div>
+    </div>
+    <button onclick="showNameModal()">Почати гру</button>
+    <h3 style="margin-top: 40px; color: #444;">Таблиця лідерів</h3>
+    <table id="leaderboard" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead>
+        <tr style="background-color: #f0f0f0;">
+            <th style="padding: 10px; border-bottom: 1px solid #ccc;">#</th>
+            <th style="padding: 10px; border-bottom: 1px solid #ccc;">Гравець</th>
+            <th style="padding: 10px; border-bottom: 1px solid #ccc;">Перемоги</th>
+        </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+        <!-- Динамічні рядки -->
+        </tbody>
+    </table>
+
+    <button onclick="openHistoryModal()" style="margin-top: 20px;">Історія ігор</button>
+
+</div>
+
+<div id="historyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+    <div style="background: white; padding: 30px 40px; border-radius: 15px; max-height: 80vh; overflow-y: auto; width: 500px; position: relative;">
+        <button onclick="closeHistoryModal()" class="close-btn" style="top: 10px; right: 15px;">✖</button>
+        <h3 style="margin-bottom: 15px; color: #333;">Останні 10 ігор</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+            <tr style="background-color: #f0f0f0;">
+                <th style="padding: 8px;">X</th>
+                <th style="padding: 8px;">O</th>
+                <th style="padding: 8px;">Переможець</th>
+                <th style="padding: 8px;">Дата</th>
+            </tr>
+            </thead>
+            <tbody id="history-body">
+            <!-- Динамічно -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модальне вікно -->
+<div id="nameModal">
+    <div id="nameDialog">
+        <button class="close-btn" onclick="closeModal()">✖</button>
+        <p id="namePrompt">Введіть імена гравців:</p>
+        <input id="player1" placeholder="Ім’я гравця X">
+        <input id="player2" placeholder="Ім’я гравця O">
+        <button onclick="startGame()">Грати</button>
+    </div>
+</div>
+
+<script>
+    function showNameModal() {
+        updateNameInputs();
+        document.getElementById("nameModal").style.display = "flex";
+    }
+
+    function closeModal() {
+        document.getElementById("nameModal").style.display = "none";
+    }
+
+    function updateNameInputs() {
+        const opponent = document.querySelector('input[name="opponent"]:checked').value;
+        const input1 = document.getElementById("player1");
+        const input2 = document.getElementById("player2");
+        const prompt = document.getElementById("namePrompt");
+
+        if (opponent === "CPU") {
+            prompt.textContent = "Введіть своє ім’я:";
+            input1.placeholder = "Ваше ім’я";
+            input2.style.display = "none";
+        } else {
+            prompt.textContent = "Введіть імена гравців:";
+            input1.placeholder = "Ім’я гравця X";
+            input2.style.display = "inline-block";
+        }
+    }
+
+    function startGame() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        const opponent = document.querySelector('input[name="opponent"]:checked').value;
+        const name1 = document.getElementById("player1").value.trim();
+        const name2 = document.getElementById("player2").value.trim();
+
+        if (!name1 || (opponent === "HUMAN" && !name2)) {
+            alert("Будь ласка, введіть ім’я/імена.");
+            return;
+        }
+
+        localStorage.setItem("gomoku_mode", mode);
+        localStorage.setItem("gomoku_opponent", opponent);
+        localStorage.setItem("gomoku_player1", name1);
+        localStorage.setItem("gomoku_player2", opponent === "CPU" ? "Комп’ютер" : name2);
+        localStorage.setItem("gomoku_score1", 0);
+        localStorage.setItem("gomoku_score2", 0);
+
+        window.location.href = mode === "TIME_LIMITED" ? "game-timed.html" : "game.html";
+    }
+    document.getElementById("nameModal").addEventListener("click", function(e) {
+        const dialog = document.getElementById("nameDialog");
+        if (!dialog.contains(e.target)) {
+            closeModal();
+        }
+    });
+
+    // Закривати модалку при натисканні Esc
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+            closeModal();
+        }
+    });
+    async function loadLeaderboard() {
+        const res = await fetch('/api/stats/leaders');
+        const data = await res.json();
+        const tbody = document.getElementById("leaderboard-body");
+        tbody.innerHTML = "";
+        data.forEach((player, index) => {
+            const row = `<tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${index + 1}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${player.name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${player.wins}</td>
+        </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    async function openHistoryModal() {
+        const res = await fetch('/api/stats/history');
+        const data = await res.json();
+        const tbody = document.getElementById("history-body");
+        tbody.innerHTML = "";
+
+        data.slice(0, 10).forEach(result => {
+            const date = new Date(result.timestamp).toLocaleString("uk-UA");
+            const row = `<tr>
+            <td style="padding: 8px;">${result.playerX}</td>
+            <td style="padding: 8px;">${result.playerO}</td>
+            <td style="padding: 8px;">${result.winner}</td>
+            <td style="padding: 8px;">${date}</td>
+        </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        document.getElementById("historyModal").style.display = "flex";
+    }
+
+    function closeHistoryModal() {
+        document.getElementById("historyModal").style.display = "none";
+    }
+
+    window.onload = () => {
+        loadLeaderboard();
+    }
+</script>
+
+</body>
+</html>
