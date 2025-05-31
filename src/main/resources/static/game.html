@@ -178,7 +178,6 @@
                 if (game.moves[key]) {
                     cell.textContent = game.moves[key];
                     cell.style.cursor = "default";
-                    cell.style.backgroundColor = "#f0f0f0";
                 } else if (!game.finished) {
                     cell.addEventListener("click", () => makeMove(x, y));
                 }
